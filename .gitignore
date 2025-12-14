@@ -37,3 +37,8 @@ social_scribe-*.tar
 npm-debug.log
 /assets/node_modules/
 
+# Settings directory used by JetBrains IDEs
+/.idea
+
+# Config directory for Anthropic’s Claude Code
+/.claude
