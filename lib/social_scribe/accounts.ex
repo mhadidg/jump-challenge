@@ -168,6 +168,13 @@ defmodule SocialScribe.Accounts do
   end
 
   @doc """
+  Gets a user credential by user_id and provider.
+  """
+  def get_user_credential_by_provider(user_id, provider) do
+    Repo.get_by(UserCredential, user_id: user_id, provider: provider)
+  end
+
+  @doc """
   Creates a user_credential.
 
   ## Examples
@@ -272,11 +279,8 @@ defmodule SocialScribe.Accounts do
   Finds or creates a user credential for a user.
   """
   def find_or_create_user_credential(user, %Auth{provider: provider} = auth)
-      when provider in [:linkedin, :facebook] do
-    case get_user_credential(
-           user,
-           Atom.to_string(auth.provider)
-         ) do
+      when provider in [:linkedin, :facebook, :hubspot] do
+    case get_user_credential(user, Atom.to_string(auth.provider)) do
       nil ->
         create_user_credential(format_credential_attrs(user, auth))
 
@@ -309,6 +313,20 @@ defmodule SocialScribe.Accounts do
       user_id: user.id,
       provider: to_string(auth.provider),
       uid: "urn:li:person:#{auth.extra.raw_info.user["sub"]}",
+      token: auth.credentials.token,
+      refresh_token: auth.credentials.token,
+      expires_at:
+        (auth.credentials.expires_at && DateTime.from_unix!(auth.credentials.expires_at)) ||
+          DateTime.add(DateTime.utc_now(), 3600, :second),
+      email: auth.info.email
+    }
+  end
+
+  defp format_credential_attrs(user, %Auth{provider: :hubspot} = auth) do
+    %{
+      user_id: user.id,
+      provider: to_string(auth.provider),
+      uid: "urn:hs:account:#{auth.extra.raw_info.app_id}",
       token: auth.credentials.token,
       refresh_token: auth.credentials.token,
       expires_at:

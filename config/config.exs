@@ -90,8 +90,16 @@ config :ueberauth, Ueberauth,
       {Ueberauth.Strategy.Facebook,
        [
          default_scope: "email,public_profile,pages_show_list,pages_manage_posts"
+       ]},
+    hubspot:
+      {Ueberauth.Strategy.Hubspot,
+       [
+         default_scope: "oauth crm.objects.contacts.read crm.objects.contacts.write"
        ]}
   ]
+
+# HubSpot API configuration
+config :ueberauth_hubspot, :base_api_url, "https://api.hubapi.com"
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.

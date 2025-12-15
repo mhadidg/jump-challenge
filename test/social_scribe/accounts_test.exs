@@ -471,6 +471,68 @@ defmodule SocialScribe.AccountsTest do
       assert updated_credential.token == "new-token"
       assert updated_credential.refresh_token == "new-refresh"
     end
+
+    test "creates a new credential for HubSpot when none exists" do
+      user = user_fixture()
+
+      auth = %Ueberauth.Auth{
+        provider: :hubspot,
+        uid: nil,
+        info: %Ueberauth.Auth.Info{
+          email: user.email
+        },
+        credentials: %Ueberauth.Auth.Credentials{
+          token: "test-token",
+          expires_at: DateTime.utc_now() |> DateTime.add(3600, :second) |> DateTime.to_unix()
+        },
+        extra: %{
+          raw_info: %{
+            app_id: "hubspot-app-12345"
+          }
+        }
+      }
+
+      {:ok, credential} = Accounts.find_or_create_user_credential(user, auth)
+
+      assert credential.provider == "hubspot"
+      assert credential.uid == "urn:hs:account:hubspot-app-12345"
+      assert credential.token == "test-token"
+      assert credential.refresh_token == "test-token"
+      assert credential.user_id == user.id
+    end
+
+    test "updates existing credential for HubSpot" do
+      user = user_fixture()
+
+      existing_credential =
+        user_credential_fixture(%{
+          user_id: user.id,
+          provider: "hubspot",
+          uid: "urn:hs:account:hubspot-app-12345"
+        })
+
+      auth = %Ueberauth.Auth{
+        provider: :hubspot,
+        uid: nil,
+        info: %Ueberauth.Auth.Info{
+          email: user.email
+        },
+        credentials: %Ueberauth.Auth.Credentials{
+          token: "new-token",
+          expires_at: DateTime.utc_now() |> DateTime.add(3600, :second) |> DateTime.to_unix()
+        },
+        extra: %{
+          raw_info: %{
+            app_id: "hubspot-app-12345"
+          }
+        }
+      }
+
+      {:ok, updated_credential} = Accounts.find_or_create_user_credential(user, auth)
+
+      assert updated_credential.id == existing_credential.id
+      assert updated_credential.token == "new-token"
+    end
   end
 
   describe "facebook_page_credentials" do
