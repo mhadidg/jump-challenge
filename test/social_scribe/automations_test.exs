@@ -29,6 +29,54 @@ defmodule SocialScribe.AutomationsTest do
       assert Automations.list_active_user_automations(user.id) == [automation_1, automation_2]
     end
 
+    test "list_active_user_automations_by_type/2 returns active automations filtered by type" do
+      user = user_fixture()
+
+      content_automation =
+        automation_fixture(%{
+          user_id: user.id,
+          is_active: true,
+          type: :content_generation,
+          platform: :linkedin
+        })
+
+      _update_contact_automation =
+        automation_fixture(%{
+          user_id: user.id,
+          is_active: true,
+          type: :update_contact,
+          platform: :hubspot
+        })
+
+      assert Automations.list_active_user_automations_by_type(user.id, :content_generation) == [
+               content_automation
+             ]
+    end
+
+    test "list_active_user_automations_by_type/2 returns update_contact automations for HubSpot" do
+      user = user_fixture()
+
+      _content_automation =
+        automation_fixture(%{
+          user_id: user.id,
+          is_active: true,
+          type: :content_generation,
+          platform: :linkedin
+        })
+
+      update_contact_automation =
+        automation_fixture(%{
+          user_id: user.id,
+          is_active: true,
+          type: :update_contact,
+          platform: :hubspot
+        })
+
+      assert Automations.list_active_user_automations_by_type(user.id, :update_contact) == [
+               update_contact_automation
+             ]
+    end
+
     test "list_automations/0 returns all automations" do
       automation = automation_fixture()
       assert Automations.list_automations() == [automation]
@@ -55,6 +103,7 @@ defmodule SocialScribe.AutomationsTest do
 
       valid_attrs = %{
         name: "some name",
+        type: :content_generation,
         description: "some description",
         platform: :linkedin,
         example: "some example",
@@ -64,10 +113,50 @@ defmodule SocialScribe.AutomationsTest do
 
       assert {:ok, %Automation{} = automation} = Automations.create_automation(valid_attrs)
       assert automation.name == "some name"
+      assert automation.type == :content_generation
       assert automation.description == "some description"
       assert automation.platform == :linkedin
       assert automation.example == "some example"
       assert automation.is_active == true
+    end
+
+    test "create_automation/1 with update_contact type creates a HubSpot automation" do
+      user = user_fixture()
+
+      valid_attrs = %{
+        name: "Update HubSpot Contact",
+        type: :update_contact,
+        description: Automations.update_contact_description(),
+        platform: :hubspot,
+        example: Automations.update_contact_example(),
+        is_active: true,
+        user_id: user.id
+      }
+
+      assert {:ok, %Automation{} = automation} = Automations.create_automation(valid_attrs)
+      assert automation.name == "Update HubSpot Contact"
+      assert automation.type == :update_contact
+      assert automation.platform == :hubspot
+      assert automation.is_active == true
+    end
+
+    test "create_automation/1 with update_contact type requires hubspot platform" do
+      user = user_fixture()
+
+      invalid_attrs = %{
+        name: "Invalid Update Contact",
+        type: :update_contact,
+        description: "some description",
+        platform: :linkedin,
+        example: "some example",
+        is_active: true,
+        user_id: user.id
+      }
+
+      assert {:error, %Ecto.Changeset{} = changeset} =
+               Automations.create_automation(invalid_attrs)
+
+      assert "must be hubspot for update_contact automations" in errors_on(changeset).platform
     end
 
     test "create_automation/1 with invalid data returns error changeset" do
@@ -137,6 +226,37 @@ defmodule SocialScribe.AutomationsTest do
                #{automation.example}
                """
     end
+
+    test "generates a prompt for update_contact automation using predefined description and example" do
+      user = user_fixture()
+
+      automation =
+        automation_fixture(%{
+          user_id: user.id,
+          type: :update_contact,
+          platform: :hubspot
+        })
+
+      prompt = Automations.generate_prompt_for_automation(automation)
+
+      assert prompt =~ Automations.update_contact_description()
+      assert prompt =~ Automations.update_contact_example()
+    end
+
+    test "update_contact_description/0 returns the predefined description" do
+      description = Automations.update_contact_description()
+      assert description =~ "Analyze the meeting transcript"
+      assert description =~ "field_id: firstname"
+      assert description =~ "Return ONLY a valid JSON array"
+    end
+
+    test "update_contact_example/0 returns the predefined example" do
+      example = Automations.update_contact_example()
+      assert example =~ "field_id"
+      assert example =~ "field_name"
+      assert example =~ "suggested_value"
+      assert example =~ "transcript_timestamp"
+    end
   end
 
   describe "automation_results" do
@@ -153,6 +273,44 @@ defmodule SocialScribe.AutomationsTest do
       assert Automations.list_automation_results_for_meeting(automation_result.meeting_id) == [
                Repo.preload(automation_result, [:automation])
              ]
+    end
+
+    test "list_automation_results_for_meeting_by_type/2 returns results filtered by automation type" do
+      user = user_fixture()
+      calendar_event = calendar_event_fixture(%{user_id: user.id})
+      meeting = meeting_fixture(%{calendar_event_id: calendar_event.id})
+
+      content_automation =
+        automation_fixture(%{
+          user_id: user.id,
+          type: :content_generation,
+          platform: :linkedin
+        })
+
+      update_contact_automation =
+        automation_fixture(%{
+          user_id: user.id,
+          type: :update_contact,
+          platform: :hubspot
+        })
+
+      _content_result =
+        automation_result_fixture(%{
+          automation_id: content_automation.id,
+          meeting_id: meeting.id
+        })
+
+      update_contact_result =
+        automation_result_fixture(%{
+          automation_id: update_contact_automation.id,
+          meeting_id: meeting.id
+        })
+
+      results = Automations.list_automation_results_for_meeting_by_type(meeting.id, :update_contact)
+
+      assert length(results) == 1
+      assert List.first(results).id == update_contact_result.id
+      assert List.first(results).automation.type == :update_contact
     end
 
     test "get_automation_result!/1 returns the automation_result with given id" do

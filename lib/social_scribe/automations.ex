@@ -9,11 +9,53 @@ defmodule SocialScribe.Automations do
   alias SocialScribe.Automations.Automation
 
   @max_automations_per_platform_per_user 1
+
+  @update_contact_description """
+  Analyze the meeting transcript and extract any updates to the following CRM contact fields:
+  - Client first name (field_id: firstname)
+  - Client last name (field_id: lastname)
+  - Phone number (field_id: phone)
+  - Email address (field_id: email)
+  - Mailing address (field_id: address)
+  - Birthday (field_id: date_of_birth)
+  - Employment status (field_id: hs_content_membership_status)
+  - Employer name (field_id: company)
+
+  Only include fields where a clear update or new value was mentioned in the conversation. 
+
+  Return ONLY a valid JSON array with no additional text. Each object must have:
+  - "field_id": The HubSpot field ID (e.g., "firstname", "phone")
+  - "field_name": The human-readable field name
+  - "suggested_value": The new value to update
+  - "transcript_timestamp": The timestamp (MM:SS format) where this was mentioned
+  """
+
+  @update_contact_example """
+  [
+    {"field_id": "firstname", "field_name": "Client first name", "suggested_value": "Tyler", "transcript_timestamp": "03:24"},
+    {"field_id": "phone", "field_name": "Phone number", "suggested_value": "555-123-4567", "transcript_timestamp": "15:46"}
+  ]
+  """
+
+  def update_contact_description, do: @update_contact_description
+  def update_contact_example, do: @update_contact_example
+
   @doc """
   Returns the list of automations for a user.
   """
   def list_active_user_automations(user_id) do
     from(a in Automation, where: a.user_id == ^user_id and a.is_active == true, order_by: a.name)
+    |> Repo.all()
+  end
+
+  @doc """
+  Returns the list of active automations for a user filtered by type.
+  """
+  def list_active_user_automations_by_type(user_id, type) do
+    from(a in Automation,
+      where: a.user_id == ^user_id and a.is_active == true and a.type == ^type,
+      order_by: a.name
+    )
     |> Repo.all()
   end
 
@@ -196,6 +238,15 @@ defmodule SocialScribe.Automations do
   @doc """
   Generates a prompt for an automation.
   """
+  def generate_prompt_for_automation(%Automation{type: :update_contact} = _automation) do
+    """
+    #{@update_contact_description}
+
+    ### Example:
+    #{@update_contact_example}
+    """
+  end
+
   def generate_prompt_for_automation(%Automation{} = automation) do
     """
     #{automation.description}
@@ -227,6 +278,18 @@ defmodule SocialScribe.Automations do
     from(ar in AutomationResult, where: ar.meeting_id == ^meeting_id)
     |> Repo.all()
     |> Repo.preload([:automation])
+  end
+
+  @doc """
+  Returns the list of automation_results for a meeting filtered by automation type.
+  """
+  def list_automation_results_for_meeting_by_type(meeting_id, type) do
+    from(ar in AutomationResult,
+      join: a in assoc(ar, :automation),
+      where: ar.meeting_id == ^meeting_id and a.type == ^type,
+      preload: [automation: a]
+    )
+    |> Repo.all()
   end
 
   @doc """

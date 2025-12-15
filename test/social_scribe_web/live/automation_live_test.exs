@@ -7,18 +7,26 @@ defmodule SocialScribeWeb.AutomationLiveTest do
 
   @create_attrs %{
     name: "some name <> #{System.unique_integer()}",
+    type: :content_generation,
     description: "some description",
     platform: :facebook,
     example: "some example"
   }
+  @create_hubspot_attrs %{
+    name: "HubSpot Contact Update",
+    type: :update_contact,
+    platform: :hubspot
+  }
   @update_attrs %{
     name: "some updated name",
+    type: :content_generation,
     description: "some updated description",
     platform: :facebook,
     example: "some updated example"
   }
   @invalid_attrs %{
     name: nil,
+    type: :content_generation,
     description: nil,
     platform: :linkedin,
     example: nil
@@ -49,8 +57,14 @@ defmodule SocialScribeWeb.AutomationLiveTest do
 
       assert_patch(index_live, ~p"/dashboard/automations/new")
 
+      # First select type to show description/example fields
+      index_live
+      |> form("#automation-form", automation: %{type: :content_generation})
+      |> render_change()
+
+      # Then test validation
       assert index_live
-             |> form("#automation-form", automation: @invalid_attrs)
+             |> form("#automation-form", automation: %{type: :content_generation, name: nil, description: nil, example: nil})
              |> render_change() =~ "can&#39;t be blank"
 
       assert index_live
@@ -62,6 +76,30 @@ defmodule SocialScribeWeb.AutomationLiveTest do
       html = render(index_live)
       assert html =~ "Automation created successfully"
       assert html =~ "some description"
+    end
+
+    test "saves new HubSpot update_contact automation", %{conn: conn} do
+      {:ok, index_live, _html} = live(conn, ~p"/dashboard/automations")
+
+      assert index_live |> element("a", "New Automation") |> render_click() =~
+               "New Automation"
+
+      assert_patch(index_live, ~p"/dashboard/automations/new")
+
+      # Select update_contact type which auto-sets description/example
+      index_live
+      |> form("#automation-form", automation: %{type: :update_contact})
+      |> render_change()
+
+      assert index_live
+             |> form("#automation-form", automation: @create_hubspot_attrs)
+             |> render_submit()
+
+      assert_patch(index_live, ~p"/dashboard/automations")
+
+      html = render(index_live)
+      assert html =~ "Automation created successfully"
+      assert html =~ "HubSpot Contact Update"
     end
 
     test "cannot toggle automation if it is already active", %{conn: conn, automation: automation} do
@@ -118,6 +156,22 @@ defmodule SocialScribeWeb.AutomationLiveTest do
 
       assert html =~ "Show Automation"
       assert html =~ automation.name
+    end
+
+    test "displays HubSpot update_contact automation", %{conn: conn, automation: automation} do
+      hubspot_automation =
+        automation_fixture(%{
+          user_id: automation.user_id,
+          type: :update_contact,
+          platform: :hubspot,
+          name: "HubSpot Contact Sync"
+        })
+
+      {:ok, _show_live, html} = live(conn, ~p"/dashboard/automations/#{hubspot_automation}")
+
+      assert html =~ "Show Automation"
+      assert html =~ "HubSpot Contact Sync"
+      assert html =~ "hubspot"
     end
 
     test "cannot toggle automation if it is already active", %{conn: conn, automation: automation} do

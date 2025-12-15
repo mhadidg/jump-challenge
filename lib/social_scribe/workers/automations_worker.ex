@@ -21,7 +21,8 @@ defmodule SocialScribe.Workers.AIContentGenerationWorker do
         case process_meeting(meeting) do
           :ok ->
             if meeting.calendar_event && meeting.calendar_event.user_id do
-              process_user_automations(meeting, meeting.calendar_event.user_id)
+              process_content_generation_automations(meeting, meeting.calendar_event.user_id)
+              process_contact_update_automations(meeting, meeting.calendar_event.user_id)
               :ok
             end
 
@@ -58,15 +59,15 @@ defmodule SocialScribe.Workers.AIContentGenerationWorker do
     end
   end
 
-  defp process_user_automations(meeting, user_id) do
-    user_automations = Automations.list_active_user_automations(user_id)
+  defp process_content_generation_automations(meeting, user_id) do
+    user_automations = Automations.list_active_user_automations_by_type(user_id, :content_generation)
 
     if Enum.empty?(user_automations) do
-      Logger.info("No active automations found for user #{user_id} for meeting #{meeting.id}")
+      Logger.info("No active content generation automations found for user #{user_id} for meeting #{meeting.id}")
       :ok
     else
       Logger.info(
-        "Processing #{Enum.count(user_automations)} automations for meeting #{meeting.id}"
+        "Processing #{Enum.count(user_automations)} content generation automations for meeting #{meeting.id}"
       )
 
       for automation <- user_automations do
@@ -93,6 +94,48 @@ defmodule SocialScribe.Workers.AIContentGenerationWorker do
 
             Logger.error(
               "Failed to generate content for automation '#{automation.name}', meeting #{meeting.id}: #{inspect(reason)}"
+            )
+        end
+      end
+    end
+  end
+
+  defp process_contact_update_automations(meeting, user_id) do
+    user_automations = Automations.list_active_user_automations_by_type(user_id, :update_contact)
+
+    if Enum.empty?(user_automations) do
+      Logger.info("No active contact update automations found for user #{user_id} for meeting #{meeting.id}")
+      :ok
+    else
+      Logger.info(
+        "Processing #{Enum.count(user_automations)} contact update automations for meeting #{meeting.id}"
+      )
+
+      for automation <- user_automations do
+        case AIContentGeneratorApi.generate_automation(automation, meeting) do
+          {:ok, generated_text} ->
+            # The generated_text should be valid JSON with contact field updates
+            Automations.create_automation_result(%{
+              automation_id: automation.id,
+              meeting_id: meeting.id,
+              generated_content: generated_text,
+              status: "draft"
+            })
+
+            Logger.info(
+              "Successfully generated contact updates for automation '#{automation.name}', meeting #{meeting.id}"
+            )
+
+          {:error, reason} ->
+            Automations.create_automation_result(%{
+              automation_id: automation.id,
+              meeting_id: meeting.id,
+              status: "generation_failed",
+              error_message: "Gemini API error: #{inspect(reason)}"
+            })
+
+            Logger.error(
+              "Failed to generate contact updates for automation '#{automation.name}', meeting #{meeting.id}: #{inspect(reason)}"
             )
         end
       end

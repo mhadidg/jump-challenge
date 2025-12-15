@@ -19,6 +19,7 @@ defmodule SocialScribe.AutomationsFixtures do
         description: "some description",
         is_active: true,
         name: "some name #{System.unique_integer([:positive])}",
+        type: :content_generation,
         platform: :linkedin,
         example: "some example",
         user_id: user_id

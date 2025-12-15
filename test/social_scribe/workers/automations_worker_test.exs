@@ -129,5 +129,51 @@ defmodule SocialScribe.Workers.AIContentGenerationWorkerTest do
       refreshed_meeting = Meetings.get_meeting_with_details(meeting.id)
       assert is_nil(refreshed_meeting.follow_up_email)
     end
+
+    test "successfully generates and saves contact update automation results for HubSpot" do
+      user = user_fixture()
+      automation_fixture(%{user_id: user.id, is_active: true, type: :update_contact, platform: :hubspot})
+      calendar_event = calendar_event_fixture(%{user_id: user.id})
+      recall_bot = recall_bot_fixture(%{calendar_event_id: calendar_event.id, user_id: user.id})
+
+      meeting =
+        meeting_fixture(%{calendar_event_id: calendar_event.id, recall_bot_id: recall_bot.id})
+
+      meeting_participant_fixture(%{meeting_id: meeting.id, is_host: true})
+      meeting_transcript_fixture(%{meeting_id: meeting.id, content: @mock_transcript_data})
+
+      job_args = %{"meeting_id" => meeting.id}
+
+      expect(AIGeneratorMock, :generate_follow_up_email, fn _ ->
+        {:ok, @generated_email_draft}
+      end)
+
+      generated_contact_updates = ~s|[{"field_id": "firstname", "field_name": "Client first name", "suggested_value": "John", "transcript_timestamp": "02:15"}, {"field_id": "phone", "field_name": "Phone number", "suggested_value": "555-123-4567", "transcript_timestamp": "08:42"}]|
+
+      expect(AIGeneratorMock, :generate_automation, fn automation, meeting ->
+        assert automation.type == :update_contact
+        assert automation.platform == :hubspot
+
+        assert meeting ==
+                 Repo.preload(meeting, [
+                   :calendar_event,
+                   :meeting_participants,
+                   :meeting_transcript,
+                   :recall_bot
+                 ])
+
+        {:ok, generated_contact_updates}
+      end)
+
+      assert AIContentGenerationWorker.perform(%Oban.Job{args: job_args}) == :ok
+
+      automation_results =
+        Automations.list_automation_results_for_meeting(meeting.id)
+
+      assert length(automation_results) == 1
+      result = List.first(automation_results)
+      assert result.generated_content == generated_contact_updates
+      assert result.status == "draft"
+    end
   end
 end
