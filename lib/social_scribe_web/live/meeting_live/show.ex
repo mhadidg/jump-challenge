@@ -10,15 +10,25 @@ defmodule SocialScribeWeb.MeetingLive.Show do
   @impl true
   def mount(%{"id" => meeting_id}, _session, socket) do
     meeting = Meetings.get_meeting_with_details(meeting_id)
+    user_id = socket.assigns.current_user.id
 
-    user_has_automations =
-      Automations.list_active_user_automations(socket.assigns.current_user.id)
+    user_has_content_automations =
+      Automations.list_active_user_automations_by_type(user_id, :content_generation)
       |> length()
       |> Kernel.>(0)
 
-    automation_results = Automations.list_automation_results_for_meeting(meeting_id)
+    user_has_contact_automations =
+      Automations.list_active_user_automations_by_type(user_id, :update_contact)
+      |> length()
+      |> Kernel.>(0)
 
-    if meeting.calendar_event.user_id != socket.assigns.current_user.id do
+    content_results =
+      Automations.list_automation_results_for_meeting_by_type(meeting_id, :content_generation)
+
+    contact_update_results =
+      Automations.list_automation_results_for_meeting_by_type(meeting_id, :update_contact)
+
+    if meeting.calendar_event.user_id != user_id do
       socket =
         socket
         |> put_flash(:error, "You do not have permission to view this meeting.")
@@ -30,8 +40,10 @@ defmodule SocialScribeWeb.MeetingLive.Show do
         socket
         |> assign(:page_title, "Meeting Details: #{meeting.title}")
         |> assign(:meeting, meeting)
-        |> assign(:automation_results, automation_results)
-        |> assign(:user_has_automations, user_has_automations)
+        |> assign(:content_results, content_results)
+        |> assign(:contact_update_results, contact_update_results)
+        |> assign(:user_has_content_automations, user_has_content_automations)
+        |> assign(:user_has_contact_automations, user_has_contact_automations)
         |> assign(
           :follow_up_email_form,
           to_form(%{
@@ -68,6 +80,56 @@ defmodule SocialScribeWeb.MeetingLive.Show do
       |> assign(:follow_up_email_form, to_form(params))
 
     {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:search_contacts, query, component_id}, socket) do
+    case get_hubspot_token(socket.assigns.current_user) do
+      nil ->
+        send_update(SocialScribeWeb.MeetingLive.ContactUpdateFormComponent,
+          id: component_id,
+          contacts: [],
+          loading_contacts: false
+        )
+
+      token ->
+        # Pass nil for empty search to get all contacts, otherwise pass the query
+        search_query = if query == "" or is_nil(query), do: nil, else: query
+
+        case SocialScribe.HubSpotApi.list_contacts(token, search_query) do
+          {:ok, contacts} ->
+            send_update(SocialScribeWeb.MeetingLive.ContactUpdateFormComponent,
+              id: component_id,
+              contacts: contacts,
+              loading_contacts: false
+            )
+
+          {:error, _} ->
+            send_update(SocialScribeWeb.MeetingLive.ContactUpdateFormComponent,
+              id: component_id,
+              contacts: [],
+              loading_contacts: false
+            )
+        end
+    end
+
+    {:noreply, socket}
+  end
+
+  def handle_info({:close_dropdown, component_id}, socket) do
+    send_update(SocialScribeWeb.MeetingLive.ContactUpdateFormComponent,
+      id: component_id,
+      close_dropdown: true
+    )
+
+    {:noreply, socket}
+  end
+
+  defp get_hubspot_token(user) do
+    case SocialScribe.Accounts.get_user_credential_by_provider(user.id, "hubspot") do
+      nil -> nil
+      credential -> credential.token
+    end
   end
 
   defp format_duration(nil), do: "N/A"
