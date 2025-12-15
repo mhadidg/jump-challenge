@@ -70,6 +70,9 @@ Social Scribe is a powerful Elixir and Phoenix LiveView application designed to 
 * **Automation Configuration UI:**
     ![Automation Configuration](readme_assets/edit_automation.png)
 
+* **Update Contact Modal (HubSpot)**
+    ![Update Contact Modal](readme_assets/update_contact_modal.png)
+
 ---
 
 ## 🛠 Tech Stack
