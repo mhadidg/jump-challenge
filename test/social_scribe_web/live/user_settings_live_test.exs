@@ -48,5 +48,28 @@ defmodule SocialScribeWeb.UserSettingsLiveTest do
       assert has_element?(view, "li", "(linked_account@example.com)")
       refute has_element?(view, "p", "You haven't connected any Google accounts yet.")
     end
+
+    test "displays a message if no HubSpot accounts are connected", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/dashboard/settings")
+      assert has_element?(view, "p", "You haven't connected any HubSpot accounts yet.")
+    end
+
+    test "displays connected HubSpot accounts", %{conn: conn, user: user} do
+      credential_attrs = %{
+        user_id: user.id,
+        provider: "hubspot",
+        uid: "urn:hs:account:hubspot-app-123",
+        token: "test-token",
+        email: "hubspot_account@example.com"
+      }
+
+      _credential = user_credential_fixture(credential_attrs)
+
+      {:ok, view, _html} = live(conn, ~p"/dashboard/settings")
+
+      assert has_element?(view, "li", "UID: urn:hs:account:hubspot-app-123")
+      assert has_element?(view, "li", "(hubspot_account@example.com)")
+      refute has_element?(view, "p", "You haven't connected any HubSpot accounts yet.")
+    end
   end
 end

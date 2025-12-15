@@ -211,6 +211,55 @@
       </div>
     <% end %>
   </div>
+
+  <div class="bg-white  shadow-xl rounded-lg p-6 md:p-8">
+    <h2 class="text-2xl font-semibold mb-6 text-slate-700 ">
+      Connected HubSpot Account
+    </h2>
+
+    <%= if not Enum.empty?(@hubspot_accounts) do %>
+      <ul class="space-y-4 mb-8">
+        <li
+          :for={account <- @hubspot_accounts}
+          class="flex justify-between items-center p-4 bg-slate-50  rounded-md shadow"
+        >
+          <div>
+            <p class="font-medium text-slate-700 ">
+              HubSpot Account
+            </p>
+            <p class="text-sm text-slate-500 ">
+              UID: {account.uid}
+              <%= if account.email do %>
+                ({account.email})
+              <% end %>
+            </p>
+          </div>
+        </li>
+      </ul>
+    <% else %>
+      <p class="mb-8 text-slate-600 ">
+        You haven't connected any HubSpot accounts yet.
+      </p>
+
+      <div>
+        <.link
+          href={~p"/auth/hubspot"}
+          method="get"
+          class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 "
+        >
+          <svg
+            class="-ml-1 mr-3 h-5 w-5"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="currentColor"
+          >
+            <path d="M18.164 7.93V5.084a2.198 2.198 0 001.267-1.978v-.067A2.2 2.2 0 0017.238.846h-.067a2.2 2.2 0 00-2.193 2.193v.067c0 .884.532 1.643 1.267 1.978V7.93a5.224 5.224 0 00-3.26 1.602l-8.636-6.71a2.675 2.675 0 00.096-.658 2.612 2.612 0 10-2.612 2.613c.4 0 .775-.094 1.11-.259l8.481 6.59a5.27 5.27 0 00-.049.678c0 .289.025.572.07.849l-2.705 1.106a2.456 2.456 0 00-2.3-1.593 2.464 2.464 0 00-2.458 2.458 2.464 2.464 0 002.458 2.458c1.168 0 2.153-.82 2.399-1.91l2.599-1.063a5.278 5.278 0 009.443-3.2 5.258 5.258 0 00-2.724-4.611zm-5.012 7.452a2.74 2.74 0 01-2.738-2.738 2.74 2.74 0 012.738-2.738 2.74 2.74 0 012.738 2.738 2.74 2.74 0 01-2.738 2.738z" />
+          </svg>
+          Connect a HubSpot Account
+        </.link>
+      </div>
+    <% end %>
+  </div>
 </div>
 
 <.modal
