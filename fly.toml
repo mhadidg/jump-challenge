@@ -1,10 +1,10 @@
-# fly.toml app configuration file generated for social-scribe on 2025-05-25T23:05:32-03:00
+# fly.toml app configuration file generated for social-scribe-summer-violet-5691 on 2025-12-16T12:37:24+03:00
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = 'social-scribe'
-primary_region = 'gru'
+app = 'social-scribe-summer-violet-5691'
+primary_region = 'ams'
 kill_signal = 'SIGTERM'
 
 [build]
@@ -13,7 +13,7 @@ kill_signal = 'SIGTERM'
   release_command = '/app/bin/migrate'
 
 [env]
-  PHX_HOST = 'social-scribe.fly.dev'
+  PHX_HOST = 'social-scribe-summer-violet-5691.fly.dev'
   PORT = '8080'
 
 [http_service]
@@ -31,5 +31,5 @@ kill_signal = 'SIGTERM'
 
 [[vm]]
   memory = '1gb'
-  cpu_kind = 'shared'
   cpus = 1
+  memory_mb = 1024
