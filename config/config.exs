@@ -92,7 +92,7 @@ config :ueberauth, Ueberauth,
          default_scope: "email,public_profile,pages_show_list,pages_manage_posts"
        ]},
     hubspot:
-      {Ueberauth.Strategy.Hubspot,
+      {SocialScribe.Auth.Hubspot,
        [
          default_scope: "oauth crm.objects.contacts.read crm.objects.contacts.write"
        ]}

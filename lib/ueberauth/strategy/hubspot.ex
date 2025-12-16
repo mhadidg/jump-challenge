@@ -1,4 +1,4 @@
-defmodule Ueberauth.Strategy.Hubspot do
+defmodule SocialScribe.Auth.Hubspot do
   @moduledoc """
   Redefining module from ueberauth_hubspot.
 
