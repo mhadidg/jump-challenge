@@ -39,7 +39,11 @@ defmodule SocialScribe.Automations.Automation do
         add_error(changeset, :platform, "must be hubspot for update_contact automations")
 
       type == :content_generation && platform == :hubspot ->
-        add_error(changeset, :platform, "hubspot is not available for content_generation automations")
+        add_error(
+          changeset,
+          :platform,
+          "hubspot is not available for content_generation automations"
+        )
 
       true ->
         changeset

@@ -60,10 +60,14 @@ defmodule SocialScribe.Workers.AIContentGenerationWorker do
   end
 
   defp process_content_generation_automations(meeting, user_id) do
-    user_automations = Automations.list_active_user_automations_by_type(user_id, :content_generation)
+    user_automations =
+      Automations.list_active_user_automations_by_type(user_id, :content_generation)
 
     if Enum.empty?(user_automations) do
-      Logger.info("No active content generation automations found for user #{user_id} for meeting #{meeting.id}")
+      Logger.info(
+        "No active content generation automations found for user #{user_id} for meeting #{meeting.id}"
+      )
+
       :ok
     else
       Logger.info(
@@ -104,7 +108,10 @@ defmodule SocialScribe.Workers.AIContentGenerationWorker do
     user_automations = Automations.list_active_user_automations_by_type(user_id, :update_contact)
 
     if Enum.empty?(user_automations) do
-      Logger.info("No active contact update automations found for user #{user_id} for meeting #{meeting.id}")
+      Logger.info(
+        "No active contact update automations found for user #{user_id} for meeting #{meeting.id}"
+      )
+
       :ok
     else
       Logger.info(

@@ -306,7 +306,8 @@ defmodule SocialScribe.AutomationsTest do
           meeting_id: meeting.id
         })
 
-      results = Automations.list_automation_results_for_meeting_by_type(meeting.id, :update_contact)
+      results =
+        Automations.list_automation_results_for_meeting_by_type(meeting.id, :update_contact)
 
       assert length(results) == 1
       assert List.first(results).id == update_contact_result.id

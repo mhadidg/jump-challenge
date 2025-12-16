@@ -64,7 +64,9 @@ defmodule SocialScribeWeb.AutomationLiveTest do
 
       # Then test validation
       assert index_live
-             |> form("#automation-form", automation: %{type: :content_generation, name: nil, description: nil, example: nil})
+             |> form("#automation-form",
+               automation: %{type: :content_generation, name: nil, description: nil, example: nil}
+             )
              |> render_change() =~ "can&#39;t be blank"
 
       assert index_live

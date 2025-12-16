@@ -132,7 +132,14 @@ defmodule SocialScribe.Workers.AIContentGenerationWorkerTest do
 
     test "successfully generates and saves contact update automation results for HubSpot" do
       user = user_fixture()
-      automation_fixture(%{user_id: user.id, is_active: true, type: :update_contact, platform: :hubspot})
+
+      automation_fixture(%{
+        user_id: user.id,
+        is_active: true,
+        type: :update_contact,
+        platform: :hubspot
+      })
+
       calendar_event = calendar_event_fixture(%{user_id: user.id})
       recall_bot = recall_bot_fixture(%{calendar_event_id: calendar_event.id, user_id: user.id})
 
@@ -148,7 +155,8 @@ defmodule SocialScribe.Workers.AIContentGenerationWorkerTest do
         {:ok, @generated_email_draft}
       end)
 
-      generated_contact_updates = ~s|[{"field_id": "firstname", "field_name": "Client first name", "suggested_value": "John", "transcript_timestamp": "02:15"}, {"field_id": "phone", "field_name": "Phone number", "suggested_value": "555-123-4567", "transcript_timestamp": "08:42"}]|
+      generated_contact_updates =
+        ~s|[{"field_id": "firstname", "field_name": "Client first name", "suggested_value": "John", "transcript_timestamp": "02:15"}, {"field_id": "phone", "field_name": "Phone number", "suggested_value": "555-123-4567", "transcript_timestamp": "08:42"}]|
 
       expect(AIGeneratorMock, :generate_automation, fn automation, meeting ->
         assert automation.type == :update_contact
