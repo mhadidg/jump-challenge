@@ -54,31 +54,65 @@ defmodule SocialScribe.Workers.BotStatusPoller do
   defp process_completed_bot(bot_record, bot_api_info) do
     Logger.info("Bot #{bot_record.recall_bot_id} is done. Fetching transcript...")
 
-    case RecallApi.get_bot_transcript(bot_record.recall_bot_id) do
-      {:ok, %Tesla.Env{body: transcript_data}} ->
-        Logger.info("Successfully fetched transcript for bot #{bot_record.recall_bot_id}")
+    with {:ok, download_url} <- get_transcript_download_url(bot_api_info),
+         {:ok, transcript_data} <- fetch_transcript_from_url(download_url) do
+      Logger.info("Successfully fetched transcript for bot #{bot_record.recall_bot_id}")
 
-        case Meetings.create_meeting_from_recall_data(bot_record, bot_api_info, transcript_data) do
-          {:ok, meeting} ->
-            Logger.info(
-              "Successfully created meeting record #{meeting.id} from bot #{bot_record.recall_bot_id}"
-            )
+      case Meetings.create_meeting_from_recall_data(bot_record, bot_api_info, transcript_data) do
+        {:ok, meeting} ->
+          Logger.info(
+            "Successfully created meeting record #{meeting.id} from bot #{bot_record.recall_bot_id}"
+          )
 
-            SocialScribe.Workers.AIContentGenerationWorker.new(%{meeting_id: meeting.id})
-            |> Oban.insert()
+          SocialScribe.Workers.AIContentGenerationWorker.new(%{meeting_id: meeting.id})
+          |> Oban.insert()
 
-            Logger.info("Enqueued AI content generation for meeting #{meeting.id}")
+          Logger.info("Enqueued AI content generation for meeting #{meeting.id}")
 
-          {:error, reason} ->
-            Logger.error(
-              "Failed to create meeting record from bot #{bot_record.recall_bot_id}: #{inspect(reason)}"
-            )
-        end
-
+        {:error, reason} ->
+          Logger.error(
+            "Failed to create meeting record from bot #{bot_record.recall_bot_id}: #{inspect(reason)}"
+          )
+      end
+    else
       {:error, reason} ->
         Logger.error(
-          "Failed to fetch transcript for bot #{bot_record.recall_bot_id} after completion: #{inspect(reason)}"
+          "Failed to fetch transcript for bot #{bot_record.recall_bot_id}: #{inspect(reason)}"
         )
+    end
+  end
+
+  defp get_transcript_download_url(bot_api_info) do
+    case bot_api_info do
+      %{recordings: [%{media_shortcuts: %{transcript: %{data: %{download_url: url}}}} | _]}
+      when is_binary(url) ->
+        {:ok, url}
+
+      _ ->
+        {:error, :transcript_download_url_not_found}
+    end
+  end
+
+  defp fetch_transcript_from_url(url) do
+    # Simple Tesla client without auth headers for S3 URLs
+    client = Tesla.client([])
+
+    case Tesla.get(client, url) do
+      {:ok, %Tesla.Env{status: 200, body: body}} when is_binary(body) ->
+        # S3 returns JSON as plain text, so we need to decode manually
+        case Jason.decode(body, keys: :atoms) do
+          {:ok, decoded} -> {:ok, decoded}
+          {:error, _} -> {:error, :json_decode_error}
+        end
+
+      {:ok, %Tesla.Env{status: 200, body: body}} ->
+        {:ok, body}
+
+      {:ok, %Tesla.Env{status: status}} ->
+        {:error, {:http_error, status}}
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 end

@@ -13,7 +13,8 @@ defmodule SocialScribe.MeetingTranscriptExample do
         ],
         language: "en-us",
         speaker: "Felipe Gomes Paradas",
-        speaker_id: 100
+        speaker_id: 100,
+        participant: %{id: 100, name: "Felipe Gomes Paradas", is_host: true}
       },
       %{
         words: [

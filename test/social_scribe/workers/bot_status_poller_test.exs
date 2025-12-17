@@ -1,7 +1,8 @@
 defmodule SocialScribe.Workers.BotStatusPollerTest do
-  use SocialScribe.DataCase, async: true
+  use SocialScribe.DataCase, async: false
 
   import Mox
+  import Tesla.Mock
   import SocialScribe.AccountsFixtures
   import SocialScribe.CalendarFixtures
   import SocialScribe.BotsFixtures
@@ -119,9 +120,10 @@ defmodule SocialScribe.Workers.BotStatusPollerTest do
         {:ok, %Tesla.Env{body: @mock_bot_api_info_done}}
       end)
 
-      # Expect API call to get transcript
-      expect(RecallApiMock, :get_bot_transcript, fn "bot-done-456" ->
-        {:ok, %Tesla.Env{body: @mock_transcript_data}}
+      # Mock the S3 URL fetch for transcript
+      mock_global(fn
+        %{method: :get, url: "https://test-s3-bucket.s3.amazonaws.com/transcript.json"} ->
+          json(@mock_transcript_data)
       end)
 
       expect(AIGeneratorMock, :generate_follow_up_email, fn @mock_transcript_data ->
@@ -245,9 +247,10 @@ defmodule SocialScribe.Workers.BotStatusPollerTest do
          %Tesla.Env{body: Map.put(@mock_bot_api_info_done, "id", "bot-transcript-error-111")}}
       end)
 
-      # Expect API call to get transcript to FAIL
-      expect(RecallApiMock, :get_bot_transcript, fn "bot-transcript-error-111" ->
-        {:error, :transcript_fetch_failed}
+      # Mock the S3 URL fetch to return an error
+      mock_global(fn
+        %{method: :get, url: "https://test-s3-bucket.s3.amazonaws.com/transcript.json"} ->
+          %Tesla.Env{status: 500, body: "Internal Server Error"}
       end)
 
       assert BotStatusPoller.perform(%Oban.Job{}) == :ok

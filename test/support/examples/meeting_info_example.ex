@@ -81,7 +81,14 @@ defmodule SocialScribe.MeetingInfoExample do
           id: "dbdadf20-d25a-4b32-ad03-e0aa61e6df25",
           started_at: "2025-05-24T23:13:27.113531Z",
           created_at: "2025-05-24T23:13:27.113531Z",
-          completed_at: "2025-05-24T23:16:23.890255Z"
+          completed_at: "2025-05-24T23:16:23.890255Z",
+          media_shortcuts: %{
+            transcript: %{
+              data: %{
+                download_url: "https://test-s3-bucket.s3.amazonaws.com/transcript.json"
+              }
+            }
+          }
         }
       ],
       automatic_leave: %{

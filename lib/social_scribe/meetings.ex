@@ -355,7 +355,14 @@ defmodule SocialScribe.Meetings do
 
       {:ok, _transcript} = create_meeting_transcript(transcript_attrs)
 
-      Enum.each(bot_api_info.meeting_participants || [], fn participant_data ->
+      # Extract unique participants from transcript data
+      participants =
+        (transcript_data || [])
+        |> Enum.map(&Map.get(&1, :participant))
+        |> Enum.reject(&is_nil/1)
+        |> Enum.uniq_by(& &1.id)
+
+      Enum.each(participants, fn participant_data ->
         participant_attrs = parse_participant_attrs(meeting, participant_data)
         create_meeting_participant(participant_attrs)
       end)
@@ -402,10 +409,16 @@ defmodule SocialScribe.Meetings do
   end
 
   defp parse_transcript_attrs(meeting, transcript_data) do
+    language =
+      case List.first(transcript_data || []) do
+        nil -> "unknown"
+        segment -> Map.get(segment, :language, "unknown")
+      end
+
     %{
       meeting_id: meeting.id,
       content: %{data: transcript_data},
-      language: List.first(transcript_data || []) |> Map.get(:language, "unknown")
+      language: language
     }
   end
 
